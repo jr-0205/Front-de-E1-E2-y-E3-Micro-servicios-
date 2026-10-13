@@ -1,0 +1,12 @@
+services:
+  superpos:
+    build: .
+    container_name: superpos-frontend
+    ports:
+      - "2222:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
