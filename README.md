@@ -60,7 +60,7 @@ npm run build
 
 ## Conectar los equipos
 
-Por defecto, la app usa la misma máquina (hostname del navegador) con los puertos anteriores. Si los microservicios están en computadoras distintas, entra a **Conexiones API** y sustituye las URLs por las IPv4 correctas, por ejemplo:
+Por defecto, la app usa el hostname del navegador y los puertos conocidos. Para URLs por defecto en build, copia `.env.example` a `.env`, ajusta `VITE_CLIENTES_URL`, `VITE_PRODUCTOS_URL`, `VITE_PEDIDOS_URL`, `VITE_PAGOS_URL`, `VITE_INVENTARIO_URL` y `VITE_NOTIFICACIONES_URL`, y reconstruye con `docker compose up --build -d`. También puedes editar las URLs desde **Conexiones API**. Si los microservicios están en computadoras distintas, utiliza sus DNS o IP actuales, por ejemplo:
 
 - Clientes: `http://192.168.1.51:2501`
 - Productos: `http://192.168.1.51:2502`
@@ -84,3 +84,6 @@ Los ejemplos son ilustrativos; sustitúyelos por las direcciones IPv4 reales. To
 ## Comprobaciones
 
 El frontend expone `/health` dentro del contenedor Nginx. En el panel Resumen se puede comprobar la conectividad de cada API. Un servicio desconectado mostrará su estado y el error de consulta en el panel de conexiones.
+
+
+Consulta [`ROUTES.md`](./ROUTES.md) para el catálogo centralizado de rutas y métodos HTTP.
