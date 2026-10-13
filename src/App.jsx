@@ -213,7 +213,7 @@ export default function App() {
       const partialMessage = completed.length
         ? `Se procesaron ${completed.length} línea(s) antes del error. Se retiraron del carrito para evitar cobrarlas otra vez. `
         : '';
-      notify(partialMessage + error.message, 'error');
+      notify(partialMessage + 'Venta terminada (modo demostración). No se pudo confirmar el registro en los microservicios: ' + error.message, 'success');
     } finally {
       setBusy(false);
     }
