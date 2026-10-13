@@ -1,9 +1,18 @@
 services:
   superpos:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_CLIENTES_URL: ${VITE_CLIENTES_URL:-}
+        VITE_PRODUCTOS_URL: ${VITE_PRODUCTOS_URL:-}
+        VITE_PEDIDOS_URL: ${VITE_PEDIDOS_URL:-}
+        VITE_PAGOS_URL: ${VITE_PAGOS_URL:-}
+        VITE_INVENTARIO_URL: ${VITE_INVENTARIO_URL:-}
+        VITE_NOTIFICACIONES_URL: ${VITE_NOTIFICACIONES_URL:-}
+        VITE_DEMO_SALES: ${VITE_DEMO_SALES:-false}
     container_name: superpos-frontend
     ports:
-      - "2222:80"
+      - "${FRONTEND_PORT:-2222}:80"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
