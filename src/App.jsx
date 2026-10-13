@@ -7,12 +7,12 @@ import {
 } from 'lucide-react';
 
 const DEFAULTS = {
-  clientes: `${location.protocol}//${location.hostname}:2501`,
-  productos: `${location.protocol}//${location.hostname}:2502`,
-  pedidos: `${location.protocol}//${location.hostname}:2503`,
-  pagos: `${location.protocol}//${location.hostname}:2504`,
-  inventario: `${location.protocol}//${location.hostname}:2506`,
-  notificaciones: `${location.protocol}//${location.hostname}:2507`,
+  clientes: import.meta.env.VITE_CLIENTES_URL || `${location.protocol}//${location.hostname}:2501`,
+  productos: import.meta.env.VITE_PRODUCTOS_URL || `${location.protocol}//${location.hostname}:2502`,
+  pedidos: import.meta.env.VITE_PEDIDOS_URL || `${location.protocol}//${location.hostname}:2503`,
+  pagos: import.meta.env.VITE_PAGOS_URL || `${location.protocol}//${location.hostname}:2504`,
+  inventario: import.meta.env.VITE_INVENTARIO_URL || `${location.protocol}//${location.hostname}:2506`,
+  notificaciones: import.meta.env.VITE_NOTIFICACIONES_URL || `${location.protocol}//${location.hostname}:2507`,
 };
 const SERVICE_INFO = [
   { key: 'clientes', label: 'Clientes', port: 2501, path: '/health' },
@@ -22,7 +22,7 @@ const SERVICE_INFO = [
   { key: 'inventario', label: 'Inventario', port: 2506, path: '/health' },
   { key: 'notificaciones', label: 'Notificaciones', port: 2507, path: '/health' },
 ];
-const DEMO_SALES = true; // Solo demostración local; no registra pagos reales.
+const DEMO_SALES = import.meta.env.VITE_DEMO_SALES === 'true'; // Por defecto procesa contra las APIs reales.
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(value || 0));
 const shortDate = value => value ? new Date(value).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const readConfig = () => {
