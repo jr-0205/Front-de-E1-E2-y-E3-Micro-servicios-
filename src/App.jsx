@@ -22,6 +22,7 @@ const SERVICE_INFO = [
   { key: 'inventario', label: 'Inventario', port: 2506, path: '/health' },
   { key: 'notificaciones', label: 'Notificaciones', port: 2507, path: '/health' },
 ];
+const DEMO_SALES = true; // Solo demostración local; no registra pagos reales.
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(value || 0));
 const shortDate = value => value ? new Date(value).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const readConfig = () => {
@@ -144,6 +145,23 @@ export default function App() {
     if (!selectedClient) return notify('Selecciona un cliente antes de cobrar.', 'error');
     if (!cart.length) return notify('Agrega al menos un producto al carrito.', 'error');
 
+    if (DEMO_SALES) {
+      const total = cart.reduce((sum, row) => sum + Number(row.precio || 0) * row.cantidad, 0);
+      const demoId = Date.now();
+      const date = new Date().toISOString();
+      const lines = cart.map(row => ({ ...row }));
+      setOrders(prev => [{ id: `DEMO-${demoId}`, cliente_id: Number(selectedClient), total, estado: 'SIMULADA', creado_en: date, productos: lines }, ...prev]);
+      setPayments(prev => [{ id: `DEMO-P-${demoId}`, pedido_id: `DEMO-${demoId}`, monto: total, metodo: paymentMethod, estado: 'SIMULADO', creado_en: date }, ...prev]);
+      setInventory(prev => prev.map(item => {
+        const line = lines.find(row => Number(row.id) === Number(item.id));
+        return line ? { ...item, stock: Math.max(0, Number(item.stock || 0) - line.cantidad) } : item;
+      }));
+      setNotifications(prev => [{ id: `DEMO-N-${demoId}`, servicio: 'ventas', mensaje: `Venta simulada por ${money(total)}; no se realizó ningún cobro real.`, tipo: 'success', creado_en: date }, ...prev]);
+      setCart([]);
+      notify(`✓ Venta simulada correctamente por ${money(total)}. No se registró ningún pago real.`);
+      return;
+    }
+
     const mismatched = cart.find(row => !inventory.some(i => Number(i.id) === Number(row.id)));
     if (mismatched) {
       return notify(`No se puede vender “${mismatched.nombre}”: Inventario no tiene un artículo con el ID ${mismatched.id}. Revisa que el ID coincida en Equipo 1 y Equipo 3.`, 'error');
@@ -264,7 +282,7 @@ export default function App() {
             <div className="cart-lines">{cart.map(row => <div className="cart-line" key={row.id}><div className="cart-product-icon"><Package size={18}/></div><div className="cart-product-name"><b>{row.nombre}</b><small>{money(row.precio)} c/u</small><div className="quantity"><button onClick={() => changeQuantity(row.id,-1)} aria-label="Restar">−</button><span>{row.cantidad}</span><button onClick={() => changeQuantity(row.id,1)} aria-label="Sumar">+</button></div></div><div className="cart-line-total"><b>{money(row.precio * row.cantidad)}</b><button onClick={() => setCart(prev => prev.filter(x => x.id !== row.id))} aria-label="Quitar producto"><X size={14}/></button></div></div>)}{!cart.length && <div className="empty-cart"><div><ShoppingCart size={25}/></div><b>Tu carrito está vacío</b><p>Agrega productos del catálogo para comenzar.</p></div>}</div>
             <div className="payment-choice"><label className="field-label">MÉTODO DE PAGO</label><div className="payment-options">{[['tarjeta','Tarjeta'],['efectivo','Efectivo'],['transferencia','Transferencia']].map(([value,label]) => <button key={value} className={paymentMethod === value ? 'payment-option selected' : 'payment-option'} onClick={() => setPaymentMethod(value)}>{value === 'tarjeta' ? <CreditCard size={16}/> : value === 'efectivo' ? <CircleDollarSign size={16}/> : <ArrowLeftRight size={16}/>}<span>{label}</span></button>)}</div></div>
             <div className="totals"><div><span>Subtotal</span><span>{money(cartTotal)}</span></div><div><span>Impuestos</span><span>Incluidos</span></div><div className="grand-total"><strong>Total a cobrar</strong><strong>{money(cartTotal)}</strong></div></div>
-            <button className="checkout-button" disabled={busy || !cart.length || !selectedClient} onClick={checkout}><CreditCard size={18}/>{busy ? 'Procesando venta…' : 'Cobrar y registrar venta'}<span>→</span></button><p className="secure-note"><CheckCircle2 size={13}/> Pago e inventario procesados por microservicios</p>
+            <button className="checkout-button" disabled={busy || !cart.length || !selectedClient} onClick={checkout}><CreditCard size={18}/>{busy ? 'Procesando venta…' : 'Cobrar y registrar venta'}<span>→</span></button><p className="secure-note"><CheckCircle2 size={13}/> {DEMO_SALES ? 'MODO DEMOSTRACIÓN · sin cobro real' : 'Pago e inventario procesados por microservicios'}</p>
           </aside>
         </section>}
 
