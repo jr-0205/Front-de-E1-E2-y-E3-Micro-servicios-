@@ -39,7 +39,11 @@ async function api(base, path, options = {}) {
   const raw = await response.text();
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = { error: raw || 'Respuesta no válida del servicio' }; }
-  if (!response.ok) throw new Error(data?.detalle || data?.error || data?.mensaje || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const detail = data?.detalle || data?.mensaje || data?.error || `HTTP ${response.status}`;
+    const upstream = data?.upstream?.detalle || data?.upstream?.error || data?.upstream?.mensaje;
+    throw new Error(upstream ? `${detail}: ${upstream}` : detail);
+  }
   return data;
 }
 const json = value => JSON.stringify(value);
@@ -139,24 +143,62 @@ export default function App() {
   const checkout = async () => {
     if (!selectedClient) return notify('Selecciona un cliente antes de cobrar.', 'error');
     if (!cart.length) return notify('Agrega al menos un producto al carrito.', 'error');
+
     const mismatched = cart.find(row => !inventory.some(i => Number(i.id) === Number(row.id)));
-    if (mismatched) return notify(`El producto “${mismatched.nombre}” no tiene registro de inventario con el mismo ID.`, 'error');
-    setBusy(true);
-    try {
-      // El microservicio Pedidos orquesta validación del cliente/producto, pago, descuento de stock y notificación.
-      for (const row of cart) {
-        await api(config.pedidos, '/pedidos', {
-          method: 'POST',
-          body: json({ clienteId: Number(selectedClient), productoId: Number(row.id), cantidad: row.cantidad, metodoPago: paymentMethod }),
-        });
+    if (mismatched) {
+      return notify(`No se puede vender “${mismatched.nombre}”: Inventario no tiene un artículo con el ID ${mismatched.id}. Revisa que el ID coincida en Equipo 1 y Equipo 3.`, 'error');
+    }
+
+    if (services.pedidos?.ok === false) {
+      return notify(`Pedidos no está disponible: ${services.pedidos.error || 'revisa la conexión en Conexiones API'}.`, 'error');
+    }
+    if (services.inventario?.ok === false) {
+      return notify(`Inventario no está disponible: ${services.inventario.error || 'revisa la IP y el puerto 2506 en Conexiones API'}.`, 'error');
+    }
+
+    // Revalida el stock justo antes de cobrar; la validación definitiva también ocurre en Pedidos.
+    for (const row of cart) {
+      const stockItem = inventory.find(i => Number(i.id) === Number(row.id));
+      if (!stockItem || Number(stockItem.stock) < row.cantidad) {
+        return notify(`Stock insuficiente para “${row.nombre}”. Actualiza Inventario antes de cobrar.`, 'error');
       }
+    }
+
+    setBusy(true);
+    const completed = [];
+    try {
+      // Pedidos es el orquestador: valida cliente/producto, registra el pago,
+      // descuenta inventario y solicita la notificación. No se modifica stock desde el navegador.
+      for (const row of cart) {
+        const result = await api(config.pedidos, '/pedidos', {
+          method: 'POST',
+          body: json({
+            clienteId: Number(selectedClient),
+            productoId: Number(row.id),
+            cantidad: row.cantidad,
+            metodoPago: paymentMethod,
+          }),
+        });
+        completed.push({ row, result });
+      }
+
       setCart([]);
       await loadAll(true);
-      notify('Venta registrada. Pedidos, pagos, inventario y notificaciones fueron actualizados.');
+      notify(`Venta completada: ${completed.length} ${completed.length === 1 ? 'producto procesado' : 'productos procesados'} por ${money(cartTotal)}. Revisa Pedidos, Pagos e Inventario.`);
     } catch (error) {
+      // Si el carrito tiene varias líneas, no repetir las ya procesadas evita cobros duplicados.
+      if (completed.length) {
+        const completedIds = new Set(completed.map(item => Number(item.row.id)));
+        setCart(prev => prev.filter(row => !completedIds.has(Number(row.id))));
+      }
       await loadAll(true);
-      notify(error.message, 'error');
-    } finally { setBusy(false); }
+      const partialMessage = completed.length
+        ? `Se procesaron ${completed.length} línea(s) antes del error. Se retiraron del carrito para evitar cobrarlas otra vez. `
+        : '';
+      notify(partialMessage + error.message, 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveClient = async event => {
