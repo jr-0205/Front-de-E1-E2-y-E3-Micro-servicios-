@@ -18,5 +18,7 @@ jobs:
           node-version: 22
       - name: Instalar dependencias
         run: npm install
+      - name: Probar la capa HTTP
+        run: npm test
       - name: Construir aplicación
         run: npm run build
