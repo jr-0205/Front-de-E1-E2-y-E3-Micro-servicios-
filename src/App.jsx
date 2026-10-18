@@ -167,6 +167,10 @@ export default function App() {
       return { ...linea, cantidad: Math.min(maximo, Math.max(1, linea.cantidad + delta)) };
     })),
     remove: id => setCarrito(prev => prev.filter(linea => Number(linea.id) !== Number(id))),
+    removeMany: ids => {
+      const objetivo = new Set(ids.map(Number));
+      setCarrito(prev => prev.filter(linea => !objetivo.has(Number(linea.id))));
+    },
     clear: () => setCarrito([]),
   }), [carrito, stockDe]);
 

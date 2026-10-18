@@ -798,6 +798,10 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.02); }
   align-items: start;
 }
 
+.pos-banner { grid-column: 1 / -1; }
+.pos-banner .notice { margin-bottom: 0; }
+.pos-banner code { background: var(--elevated); }
+
 .catalog-panel { padding: 20px; }
 .catalog-panel .panel-head { margin-bottom: 14px; }
 
@@ -966,6 +970,26 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 .checkout-btn { margin-top: 16px; }
 .secure-note { font-size: 10.5px; color: var(--text-3); text-align: center; margin-top: 11px; line-height: 1.5; }
+
+.demo-sales {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+.demo-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--card-2);
+}
+.demo-row b { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.demo-row small { font-size: 10.5px; color: var(--text-3); text-align: right; }
 
 /* ==========================================================================
    Resumen (dashboard)

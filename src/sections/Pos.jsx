@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeftRight, ChevronDown, CircleDollarSign, CreditCard, Package, Plus,
+  AlertTriangle, ArrowLeftRight, ChevronDown, CircleDollarSign, CreditCard, Package, Plus,
   ShoppingCart, Trash2, Users, X,
 } from 'lucide-react';
-import { dinero, json, numero } from '../lib/api.js';
-import { EmptyState, Pill, ServiceAlert } from '../components/ui.jsx';
+import { VENTAS_SIMULADAS, dinero, json, numero } from '../lib/api.js';
+import { EmptyState, Notice, Pill, ServiceAlert } from '../components/ui.jsx';
 
 const METODOS = [
   { id: 'tarjeta', label: 'Tarjeta', Icon: CreditCard },
@@ -20,6 +20,7 @@ export default function Pos({ app }) {
   const [clienteId, setClienteId] = useState('');
   const [metodoPago, setMetodoPago] = useState('tarjeta');
   const [cobrando, setCobrando] = useState(false);
+  const [simuladas, setSimuladas] = useState([]);
   const buscador = useRef(null);
 
   /* Atajo real de teclado: Ctrl/Cmd + K enfoca la búsqueda del catálogo. */
@@ -68,13 +69,39 @@ export default function Pos({ app }) {
     if (!clienteId) return notify('Selecciona un cliente antes de cobrar.', 'error');
     if (!cart.rows.length) return notify('Agrega al menos un producto al carrito.', 'error');
 
-    const lineas = cart.rows;
+    const lineas = [...cart.rows];
+
+    /* Modo demostración (VITE_DEMO_SALES=true): no se llama a ninguna API. */
+    if (VENTAS_SIMULADAS) {
+      const total = cart.total;
+      setSimuladas(prev => [{ id: Date.now(), total, articulos: lineas.length, metodoPago }, ...prev].slice(0, 4));
+      cart.clear();
+      notify(`Venta simulada por ${dinero(total)}. No se registró ningún cobro ni se descontó inventario.`, 'warn');
+      return;
+    }
+
+    if (services.pedidos && !services.pedidos.ok) {
+      return notify(`Pedidos no está disponible: ${services.pedidos.error}. Revisa Conexiones API.`, 'error');
+    }
+    if (services.inventario && !services.inventario.ok) {
+      return notify(`Inventario no está disponible: ${services.inventario.error}. Revisa Conexiones API.`, 'error');
+    }
+
+    // Última comprobación local antes de cobrar; Pedidos vuelve a validar del lado del servidor.
+    for (const linea of lineas) {
+      const stock = stockDe(linea.id);
+      if (stock < linea.cantidad) {
+        return notify(`No hay existencias suficientes de “${linea.nombre}” (disponibles: ${stock}). Actualiza Inventario antes de cobrar.`, 'error');
+      }
+    }
+
     setCobrando(true);
+    const completadas = [];
+    const respuestas = [];
 
     try {
-      // Pedidos orquesta la validación, el pago, el descuento de existencias y las notificaciones.
-      const respuestas = [];
-
+      // Pedidos es el orquestador: valida cliente y producto, registra el pago,
+      // descuenta existencias en Inventario y genera las notificaciones.
       for (const linea of lineas) {
         respuestas.push(await api('pedidos', '', {
           method: 'POST',
@@ -85,6 +112,7 @@ export default function Pos({ app }) {
             metodoPago,
           }),
         }));
+        completadas.push(linea.id);
       }
 
       // Pedidos responde { pedido, pago, integracion, advertenciaNotificacion }.
@@ -104,8 +132,14 @@ export default function Pos({ app }) {
         notify(`Venta registrada (${resumen}). Pedidos, pagos, inventario y notificaciones se actualizaron.`);
       }
     } catch (error) {
+      // Las líneas ya cobradas se retiran del carrito para no cobrarlas dos veces.
+      if (completadas.length) cart.removeMany(completadas);
       await reload(true);
-      notify(error.message, 'error');
+
+      const parcial = completadas.length
+        ? `Se cobraron ${completadas.length} de ${lineas.length} líneas antes del error; se retiraron del carrito. `
+        : '';
+      notify(parcial + error.message, 'error');
     } finally {
       setCobrando(false);
     }
@@ -113,10 +147,20 @@ export default function Pos({ app }) {
 
   const productosCaidos = services.productos && !services.productos.ok;
   const inventarioCaido = services.inventario && !services.inventario.ok;
+  const pedidosCaidos = services.pedidos && !services.pedidos.ok;
   const catalogoVacio = !productos.length && !productosCaidos;
 
   return (
     <section className="pos-layout">
+      {VENTAS_SIMULADAS && (
+        <div className="pos-banner">
+          <Notice kind="warn" icon={AlertTriangle}>
+            <b>Modo demostración activo.</b> El botón de cobro no envía nada a los servicios: registra la venta solo en
+            esta pantalla y no descuenta existencias. Se activa con <code>VITE_DEMO_SALES=true</code> al compilar.
+          </Notice>
+        </div>
+      )}
+
       <div className="panel catalog-panel">
         <div className="panel-head">
           <div>
@@ -300,16 +344,30 @@ export default function Pos({ app }) {
         <button
           type="button"
           className="btn btn-primary btn-block checkout-btn"
-          disabled={cobrando || !cart.rows.length || !clienteId || productosCaidos}
+          disabled={cobrando || !cart.rows.length || !clienteId || (!VENTAS_SIMULADAS && (productosCaidos || pedidosCaidos))}
           onClick={cobrar}
         >
           <CreditCard size={16} aria-hidden="true" />
-          {cobrando ? 'Procesando venta…' : 'Cobrar y registrar venta'}
+          {cobrando ? 'Procesando venta…' : VENTAS_SIMULADAS ? 'Simular venta' : 'Cobrar y registrar venta'}
         </button>
 
         <p className="secure-note">
-          El pago, el descuento de existencias y las notificaciones los coordina el microservicio de Pedidos.
+          {VENTAS_SIMULADAS
+            ? 'Modo demostración: la venta no se envía a los servicios y no se descuenta inventario.'
+            : 'El pago, el descuento de existencias y las notificaciones los coordina el microservicio de Pedidos.'}
         </p>
+
+        {simuladas.length > 0 && (
+          <div className="demo-sales">
+            <span className="field-label">Ventas simuladas de esta sesión</span>
+            {simuladas.map(venta => (
+              <div className="demo-row" key={venta.id}>
+                <b>{dinero(venta.total)}</b>
+                <small>{venta.articulos} {venta.articulos === 1 ? 'artículo' : 'artículos'} · {venta.metodoPago} · sin cobro real</small>
+              </div>
+            ))}
+          </div>
+        )}
 
         {inventarioCaido && (
           <div className="inline-note warn">

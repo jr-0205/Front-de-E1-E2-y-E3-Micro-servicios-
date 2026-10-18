@@ -104,7 +104,21 @@ Por defecto la app usa la misma máquina (hostname del navegador) con los puerto
 
 Los ejemplos son ilustrativos; sustitúyelos por las IPv4 reales. El botón **Valores por defecto** restaura las direcciones locales. Todos los servicios deben permitir solicitudes CORS desde el navegador (los servicios del proyecto ya las incluyen).
 
+### URLs por defecto en la compilación
+
+Si prefieres que el front ya nazca con las direcciones correctas (por ejemplo, para demostrarlo sin tocar la configuración), copia `.env.example` a `.env`, ajusta `VITE_CLIENTES_URL`, `VITE_PRODUCTOS_URL`, `VITE_PEDIDOS_URL`, `VITE_PAGOS_URL`, `VITE_INVENTARIO_URL` y `VITE_NOTIFICACIONES_URL`, y reconstruye:
+
+```bash
+docker compose up --build -d
+```
+
+En redes con IP dinámica conviene un DNS local o reservas DHCP en lugar de IP fijas. La pantalla **Conexiones API** siempre tiene prioridad sobre esos valores por defecto, porque se guarda en el navegador.
+
 **Importante:** configura también el `.env` del Equipo 2 con `CLIENTES_URL`, `PRODUCTOS_URL`, `INVENTARIO_URL` y `NOTIFICACIONES_URL`, con URLs alcanzables desde su contenedor.
+
+## Modo demostración
+
+`VITE_DEMO_SALES=true` (apagado por defecto) convierte el botón de cobro en **Simular venta**: la venta se muestra en pantalla marcada como simulada, no se envía a ninguna API y no descuenta existencias. La pantalla avisa siempre de que el modo está activo, para que nadie confunda una demostración con un cobro real.
 
 ## Contrato de venta e inventario
 
@@ -125,3 +139,9 @@ Los ejemplos son ilustrativos; sustitúyelos por las IPv4 reales. El botón **Va
 ## Comprobaciones
 
 El frontend expone `/health` dentro del contenedor Nginx. En el panel **Resumen** se comprueba la conectividad de cada API; un servicio desconectado muestra su estado y el error de consulta, y cada sección ofrece un botón **Reintentar**.
+
+## Documentación relacionada
+
+- [`ROUTES.md`](./ROUTES.md): rutas, cuerpos y alias que consume esta interfaz.
+- [`MICROSERVICES_STANDARD.md`](./MICROSERVICES_STANDARD.md): estándar común acordado por los tres equipos.
+- `reglas.md` (repositorio de la asignatura): integración, IPs, puertos y flujo de la demostración.

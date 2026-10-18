@@ -110,6 +110,20 @@ describe('Cliente HTTP de SuperPOS', () => {
     assert.match(error.message, /formato válido/);
   });
 
+  it('incluye el error del servicio que falló aguas arriba (Pedidos → Inventario)', async () => {
+    const servicio = await levantar({
+      '/pedidos': () => ({
+        status: 502,
+        body: { error: 'No fue posible completar la creación del pedido', upstream: { detalle: 'Inventario no disponible' } },
+      }),
+    });
+
+    const error = await capturarError(() => apiServicio(servicio.base, 'pedidos'));
+
+    assert.equal(error.status, 502);
+    assert.equal(error.message, 'No fue posible completar la creación del pedido: Inventario no disponible');
+  });
+
   it('informa con claridad cuando el servicio está apagado', async () => {
     const error = await capturarError(() => apiServicio('http://127.0.0.1:1', 'clientes'));
 
@@ -158,7 +172,7 @@ describe('Utilidades', () => {
     globalThis.location = { protocol: 'http:', hostname: '10.0.0.5' };
 
     try {
-      assert.deepEqual(configPorDefecto(), {
+      assert.deepEqual(configPorDefecto({}), {
         clientes: 'http://10.0.0.5:2501',
         productos: 'http://10.0.0.5:2502',
         pedidos: 'http://10.0.0.5:2503',
@@ -166,6 +180,26 @@ describe('Utilidades', () => {
         inventario: 'http://10.0.0.5:2506',
         notificaciones: 'http://10.0.0.5:2507',
       });
+    } finally {
+      globalThis.location = locationOriginal;
+    }
+  });
+
+  it('configPorDefecto respeta las URLs inyectadas en compilación (VITE_*)', () => {
+    const locationOriginal = globalThis.location;
+    globalThis.location = { protocol: 'http:', hostname: '10.0.0.5' };
+
+    try {
+      const config = configPorDefecto({
+        VITE_PEDIDOS_URL: 'http://equipo2.local:2503/',
+        VITE_INVENTARIO_URL: '  http://equipo3.local:2506  ',
+        VITE_CLIENTES_URL: '',
+      });
+
+      assert.equal(config.pedidos, 'http://equipo2.local:2503', 'se recorta la barra final');
+      assert.equal(config.inventario, 'http://equipo3.local:2506', 'se recortan los espacios');
+      assert.equal(config.clientes, 'http://10.0.0.5:2501', 'una variable vacía usa el valor por defecto');
+      assert.equal(config.pagos, 'http://10.0.0.5:2504');
     } finally {
       globalThis.location = locationOriginal;
     }

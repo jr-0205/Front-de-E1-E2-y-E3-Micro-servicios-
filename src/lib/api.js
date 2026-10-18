@@ -9,12 +9,16 @@
 
 const TIMEOUT_MS = 8000;
 
+/* `import.meta.env` solo existe en Vite; en Node (pruebas) queda vacío. */
+const ENV = import.meta.env || {};
+
 export const SERVICE_LIST = [
   {
     key: 'clientes',
     label: 'Clientes',
     equipo: 'Equipo 1',
     port: 2501,
+    variable: 'VITE_CLIENTES_URL',
     ruta: '/clientes',
     alias: null,
     descripcion: 'Directorio de clientes',
@@ -24,6 +28,7 @@ export const SERVICE_LIST = [
     label: 'Productos',
     equipo: 'Equipo 1',
     port: 2502,
+    variable: 'VITE_PRODUCTOS_URL',
     ruta: '/productos',
     alias: null,
     descripcion: 'Catálogo comercial',
@@ -33,6 +38,7 @@ export const SERVICE_LIST = [
     label: 'Pedidos',
     equipo: 'Equipo 2',
     port: 2503,
+    variable: 'VITE_PEDIDOS_URL',
     ruta: '/pedidos',
     alias: null,
     descripcion: 'Órdenes de venta',
@@ -42,6 +48,7 @@ export const SERVICE_LIST = [
     label: 'Pagos',
     equipo: 'Equipo 2',
     port: 2504,
+    variable: 'VITE_PAGOS_URL',
     ruta: '/pagos',
     alias: null,
     descripcion: 'Cobros registrados',
@@ -51,6 +58,7 @@ export const SERVICE_LIST = [
     label: 'Inventario',
     equipo: 'Equipo 3',
     port: 2506,
+    variable: 'VITE_INVENTARIO_URL',
     ruta: '/inventario',
     alias: '/api/products',
     descripcion: 'Existencias (fuente oficial de stock)',
@@ -60,6 +68,7 @@ export const SERVICE_LIST = [
     label: 'Notificaciones',
     equipo: 'Equipo 3',
     port: 2507,
+    variable: 'VITE_NOTIFICACIONES_URL',
     ruta: '/notificaciones',
     alias: '/api/notifications',
     descripcion: 'Eventos del sistema',
@@ -69,10 +78,26 @@ export const SERVICE_LIST = [
 export const SERVICE_KEYS = SERVICE_LIST.map(servicio => servicio.key);
 export const SERVICIO = Object.fromEntries(SERVICE_LIST.map(servicio => [servicio.key, servicio]));
 
-/** Direcciones por defecto: misma computadora que sirve el front, puerto publicado. */
-export function configPorDefecto() {
+/*
+ * Modo demostración (VITE_DEMO_SALES=true). Apagado por defecto: la aplicación
+ * trabaja contra las APIs reales y nunca simula un cobro sin avisar.
+ */
+export const VENTAS_SIMULADAS = ENV.VITE_DEMO_SALES === 'true';
+
+/**
+ * Direcciones por defecto de cada servicio.
+ *
+ * Prioridad: la URL inyectada en compilación (`VITE_*_URL`, ver `.env.example`)
+ * y, si no existe, la misma computadora que sirve el front con el puerto publicado.
+ */
+export function configPorDefecto(entorno = ENV) {
   const origen = `${location.protocol}//${location.hostname}`;
-  return Object.fromEntries(SERVICE_LIST.map(servicio => [servicio.key, `${origen}:${servicio.port}`]));
+
+  return Object.fromEntries(SERVICE_LIST.map(servicio => {
+    const inyectada = entorno[servicio.variable];
+    const url = typeof inyectada === 'string' && inyectada.trim() ? inyectada.trim() : `${origen}:${servicio.port}`;
+    return [servicio.key, url.replace(/\/+$/, '')];
+  }));
 }
 
 export class ErrorServicio extends Error {
@@ -122,8 +147,10 @@ export async function api(base, path, options = {}) {
   }
 
   if (!response.ok) {
-    const detalle = data?.detalle || data?.error || data?.mensaje || `HTTP ${response.status}`;
-    throw new ErrorServicio(detalle, response.status, url);
+    const detalle = data?.detalle || data?.mensaje || data?.error || `HTTP ${response.status}`;
+    // Pedidos y otros servicios anidan el error del servicio que falló (por ejemplo, Inventario).
+    const aguasArriba = data?.upstream?.detalle || data?.upstream?.mensaje || data?.upstream?.error;
+    throw new ErrorServicio(aguasArriba ? `${detalle}: ${aguasArriba}` : detalle, response.status, url);
   }
 
   return data;
