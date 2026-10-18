@@ -3,7 +3,7 @@ import {
   AlertTriangle, ArrowLeftRight, ChevronDown, CircleDollarSign, CreditCard, Package, Plus,
   ShoppingCart, Trash2, Users, X,
 } from 'lucide-react';
-import { VENTAS_SIMULADAS, dinero, json, numero } from '../lib/api.js';
+import { VENTAS_SIMULADAS, dinero, esFalloDeConexion, json, numero } from '../lib/api.js';
 import { EmptyState, Notice, Pill, ServiceAlert } from '../components/ui.jsx';
 
 const METODOS = [
@@ -139,6 +139,18 @@ export default function Pos({ app }) {
       const parcial = completadas.length
         ? `Se cobraron ${completadas.length} de ${lineas.length} líneas antes del error; se retiraron del carrito. `
         : '';
+
+      if (esFalloDeConexion(error)) {
+        // Sin respuesta del servicio el resultado es desconocido: se avisa como
+        // advertencia y se pide verificar Pedidos. Nunca se muestra como éxito.
+        notify(
+          `${parcial}No hubo respuesta de ${error.url}, así que la venta no se pudo confirmar. ` +
+          'Revisa Pedidos antes de reintentar para no cobrar dos veces.',
+          'warn'
+        );
+        return;
+      }
+
       notify(parcial + error.message, 'error');
     } finally {
       setCobrando(false);

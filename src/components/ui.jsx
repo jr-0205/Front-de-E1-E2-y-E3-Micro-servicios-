@@ -44,8 +44,8 @@ export function Field({ label, hint, error, children, id }) {
   );
 }
 
-export function Pill({ tone = 'neutral', children }) {
-  return <span className={`pill pill-${tone}`}>{children}</span>;
+export function Pill({ tone = 'neutral', title, children }) {
+  return <span className={`pill pill-${tone}`} title={title}>{children}</span>;
 }
 
 /** Traduce el estado de pedidos y pagos a un tono semántico. */

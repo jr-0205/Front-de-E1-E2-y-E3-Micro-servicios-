@@ -113,6 +113,14 @@ const RUTA_AUSENTE = new Set([404, 405]);
 
 export const esRutaAusente = error => error instanceof ErrorServicio && RUTA_AUSENTE.has(error.status);
 
+/*
+ * Fallo de conexión (status 0): la petición salió, pero el servicio no respondió,
+ * así que el resultado es **desconocido**. No es lo mismo que un rechazo del
+ * servidor (400/409/502), donde sí se sabe que la operación no se aplicó.
+ * Las pantallas usan este dato para no reportar como éxito algo que no se confirmó.
+ */
+export const esFalloDeConexion = error => error instanceof ErrorServicio && error.status === 0;
+
 function mensajeDeRed(error, url) {
   if (error?.name === 'TimeoutError') {
     return `El servicio no respondió a tiempo (${url}). Revisa que esté encendido en otra computadora.`;

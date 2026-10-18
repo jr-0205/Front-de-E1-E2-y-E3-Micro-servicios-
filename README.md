@@ -104,6 +104,19 @@ Por defecto la app usa la misma máquina (hostname del navegador) con los puerto
 
 Los ejemplos son ilustrativos; sustitúyelos por las IPv4 reales. El botón **Valores por defecto** restaura las direcciones locales. Todos los servicios deben permitir solicitudes CORS desde el navegador (los servicios del proyecto ya las incluyen).
 
+### Un solo archivo: `ip-path`
+
+`ip-path` es la **única fuente de verdad** de las direcciones. Se escribe una vez y un comando genera el `.env` (que es local y no se versiona):
+
+```bash
+notepad ip-path                  # IP de cada laptop; deja `auto` en esta PC
+node configurar-ips.mjs          # genera el .env
+node configurar-ips.mjs --probar # además prueba /health de cada dirección
+```
+
+- En este repositorio, `auto` deja las URLs vacías y el navegador usa el host desde el que se abrió la interfaz, así que funciona en cualquier PC de la red.
+- Si los cuatro repositorios están en la misma carpeta, se configura todo de una vez desde la raíz del proyecto con `node configurar-ips.mjs`.
+
 ### URLs por defecto en la compilación
 
 Si prefieres que el front ya nazca con las direcciones correctas (por ejemplo, para demostrarlo sin tocar la configuración), copia `.env.example` a `.env`, ajusta `VITE_CLIENTES_URL`, `VITE_PRODUCTOS_URL`, `VITE_PEDIDOS_URL`, `VITE_PAGOS_URL`, `VITE_INVENTARIO_URL` y `VITE_NOTIFICACIONES_URL`, y reconstruye:
@@ -126,6 +139,9 @@ En redes con IP dinámica conviene un DNS local o reservas DHCP en lugar de IP f
 - El ID del producto en el catálogo del Equipo 1 es el mismo `productoId` del Inventario del Equipo 3: es la llave que une precio, stock y venta.
 - El `stock` del catálogo de Productos es informativo. Las existencias reales se consultan y modifican en Inventario.
 - La venta se procesa por línea de producto con `POST /pedidos`; la respuesta incluye `pedido`, `pago` y `advertenciaNotificacion`. Si la venta se completa pero falla una notificación, el front lo avisa en un mensaje de advertencia en lugar de darla por perdida.
+- **Una venta nunca se reporta como exitosa si no se confirmó.** Si el servicio no responde (fallo de conexión) el resultado es desconocido, así que la interfaz muestra una advertencia que pide revisar **Pedidos** antes de reintentar, en lugar de un mensaje de éxito. Solo los rechazos definitivos del servidor (`400`, `409`, `502`) se muestran como error, con el detalle que devolvió el servicio.
+- Si una venta se cobra parcialmente (varias líneas y un fallo a mitad), las líneas ya registradas se retiran del carrito para no cobrarlas dos veces.
+- La pantalla **Notificaciones** normaliza el campo `tipo` (incluye valores heredados como `SUCCESS` o `PAGO_APROBADO` y mayúsculas) para pintar cada evento con su tono correcto, y muestra el emisor aunque venga como `origen` en registros antiguos.
 - Esta interfaz es una aplicación educativa de demostración: no integra una pasarela bancaria real ni debe usarse para cobros reales.
 
 ## Accesibilidad y responsive

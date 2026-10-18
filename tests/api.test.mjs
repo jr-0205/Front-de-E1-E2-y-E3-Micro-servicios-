@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { after, describe, it } from 'node:test';
-import { ErrorServicio, api, apiServicio, comoLista, configPorDefecto, esRutaAusente } from '../src/lib/api.js';
+import { ErrorServicio, api, apiServicio, comoLista, configPorDefecto, esFalloDeConexion, esRutaAusente } from '../src/lib/api.js';
 
 const servidores = [];
 
@@ -130,6 +130,16 @@ describe('Cliente HTTP de SuperPOS', () => {
     assert.ok(error instanceof ErrorServicio);
     assert.equal(error.status, 0);
     assert.match(error.message, /No se pudo conectar/);
+  });
+
+  it('distingue un fallo de conexión (resultado desconocido) de un rechazo del servidor', async () => {
+    const apagado = await capturarError(() => apiServicio('http://127.0.0.1:1', 'clientes'));
+    assert.equal(esFalloDeConexion(apagado), true, 'sin respuesta el resultado es desconocido');
+
+    const servicio = await levantar({ '/pedidos': () => ({ status: 409, body: { error: 'Existencia insuficiente' } }) });
+    const rechazo = await capturarError(() => apiServicio(servicio.base, 'pedidos'));
+    assert.equal(rechazo.status, 409);
+    assert.equal(esFalloDeConexion(rechazo), false, 'un rechazo del servidor sí se conoce');
   });
 
   it('envía el cuerpo como JSON con su cabecera', async () => {

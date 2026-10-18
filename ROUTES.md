@@ -40,9 +40,14 @@ completa pero falla la notificación, el front lo informa como aviso en lugar de
 ## Cambio de IP
 
 1. Preferir reservas DHCP o DNS local para mantener estable el hostname.
-2. Actualizar las URLs en **Conexiones API** si cambian los hosts.
-3. Si las URLs se inyectan en compilación, actualizar `.env` y reconstruir (`docker compose up --build -d`).
-4. Abrir en el firewall los puertos `2501`, `2502`, `2503`, `2504`, `2506`, `2507` y `2222` según el host.
+2. La vía rápida: editar **`ip-path`** (las cuatro direcciones) y ejecutar
+   `node configurar-ips.mjs`, que regenera este `.env`. Desde la raíz del proyecto,
+   `node configurar-ips.mjs` configura los cuatro repositorios de una vez.
+3. También se pueden actualizar las URLs a mano en **Conexiones API** (tienen prioridad,
+   porque se guardan en el navegador).
+4. Si las URLs se inyectan en compilación, actualizar `.env` y reconstruir
+   (`docker compose up --build -d`).
+5. Abrir en el firewall los puertos `2501`, `2502`, `2503`, `2504`, `2506`, `2507` y `2222` según el host.
 
 ## Contrato común
 
